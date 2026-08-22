@@ -62,7 +62,8 @@ class VoiceAssistantService : Service() {
                 override fun onResults(results: Bundle?) {
                     val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?.joinToString(" ")?.lowercase(Locale("fa", "IR")) ?: ""
-                                            if (!testMode) handleText(text)
+                    android.util.Log.d("VocalAssistantSTT", "final text=$text; awaiting=$awaitingCommand; confirmation=$confirmationMode")
+                    if (!testMode) handleText(text)
                     if (!testMode) scheduleRestart()
 
                 }
@@ -75,6 +76,7 @@ class VoiceAssistantService : Service() {
                 override fun onPartialResults(partialResults: Bundle?) {
                     val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?.joinToString(" ")?.lowercase(Locale("fa", "IR")) ?: ""
+                    android.util.Log.d("VocalAssistantSTT", "partial text=$text")
                     if (isWakePhrase(text)) {
                         handleText(text)
                     }
@@ -101,6 +103,7 @@ class VoiceAssistantService : Service() {
     }
 
     private fun handleText(text: String) {
+        android.util.Log.d("VocalAssistantSTT", "handleText=$text")
         if (isWakePhrase(text)) {
             confirmationMode = false
             awaitingCommand = true
@@ -109,9 +112,16 @@ class VoiceAssistantService : Service() {
             speak(prompt)
             return
         }
-        if (!confirmationMode && awaitingCommand && (text.contains("تماس") || text.contains("زنگ"))) {
+        val normalizedCommand = text
+            .replace("ي", "ی")
+            .replace("ك", "ک")
+            .replace("‌", " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        if (!confirmationMode && awaitingCommand && isCallCommand(normalizedCommand)) {
             awaitingCommand = false
-            val contact = findContact(text)
+            android.util.Log.d("VocalAssistantSTT", "call command=$normalizedCommand")
+            val contact = findContact(normalizedCommand)
             if (contact == null) {
                 awaitingCommand = true
                 val prompt = "مخاطبی با این نام پیدا نشد. نام را دوباره بگویید."
@@ -119,6 +129,7 @@ class VoiceAssistantService : Service() {
                 speak(prompt)
                 return
             }
+            android.util.Log.d("VocalAssistantSTT", "matched contact=${contact.first}")
             pendingName = contact.first
             pendingPhone = contact.second
             awaitingCommand = false
@@ -144,6 +155,10 @@ class VoiceAssistantService : Service() {
             speak(prompt)
         }
     }
+
+    private fun isCallCommand(text: String): Boolean = listOf(
+        "تماس", "تماس بگیر", "تماس بزن", "زنگ", "زنگ بزن", "زنگ بگیر", "تلفن"
+    ).any(text::contains)
 
     private fun findContact(command: String): Pair<String, String>? {
         val query = command
@@ -178,6 +193,7 @@ class VoiceAssistantService : Service() {
                 }
             }
         }
+        android.util.Log.d("VocalAssistantSTT", "contact query=$query; best=$best; score=$bestScore")
         return if (bestScore >= 20) best else null
     }
 
