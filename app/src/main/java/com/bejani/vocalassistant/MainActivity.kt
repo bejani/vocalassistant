@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
-import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -58,7 +57,7 @@ class MainActivity : ComponentActivity() {
 
         val ttsSettings = Button(this).apply {
             text = "تنظیم صدای فارسی"
-            setOnClickListener { startActivity(Intent(Settings.ACTION_TEXT_TO_SPEECH_SETTINGS)) }
+            setOnClickListener { startActivity(Intent("com.android.settings.TTS_SETTINGS")) }
         }
 
         val root = LinearLayout(this).apply {
