@@ -9,6 +9,9 @@ android {
 
     defaultConfig {
         applicationId = "com.bejani.vocalassistant"
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
         minSdk = 26
         targetSdk = 34
         versionCode = 1

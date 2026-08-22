@@ -5,12 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.media.AudioAttributes
-import android.media.AudioManager
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
 import android.util.Log
-import java.util.Locale
 import android.provider.ContactsContract
 import android.widget.Button
 import android.widget.LinearLayout
@@ -24,9 +19,8 @@ class MainActivity : ComponentActivity() {
     private val contactPicker = 1001
     private val permissionRequest = 1002
     private lateinit var selectedContact: TextView
-    private var testSpeaker: TextToSpeech? = null
-    private var testSpeakerReady = false
-    private var testSpeechPending = false
+    private lateinit var offlineTts: OfflinePersianTts
+    private var ttsPreparing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,15 +66,23 @@ class MainActivity : ComponentActivity() {
         val testTts = Button(this).apply {
             text = "آزمایش صدا"
             setOnClickListener {
-                Toast.makeText(this@MainActivity, "در حال آزمایش موتور صدا…", Toast.LENGTH_SHORT).show()
-                Log.d("VocalAssistantTTS", "Test button clicked; ready=$testSpeakerReady")
-                if (testSpeakerReady) {
-                    val result = testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
-                    Log.d("VocalAssistantTTS", "speak() result=$result")
-                    if (result == TextToSpeech.ERROR) Toast.makeText(this@MainActivity, "موتور صدا نتوانست پخش کند", Toast.LENGTH_LONG).show()
-                } else {
-                    testSpeechPending = true
-                    Toast.makeText(this@MainActivity, "صدای فارسی در موتور انتخاب‌شده پیدا نشد", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, "در حال آماده‌سازی صدای فارسی…", Toast.LENGTH_SHORT).show()
+                if (!ttsPreparing) {
+                    ttsPreparing = true
+                    Thread {
+                        try {
+                            offlineTts.prepare { progress ->
+                                runOnUiThread { Toast.makeText(this@MainActivity, "دانلود مدل فارسی: $progress%", Toast.LENGTH_SHORT).show() }
+                            }
+                            offlineTts.speak("این یک صدای آزمایشی از دستیار صوتی است")
+                            runOnUiThread { Toast.makeText(this@MainActivity, "صدای آزمایشی پخش شد", Toast.LENGTH_SHORT).show() }
+                        } catch (error: Exception) {
+                            Log.e("VocalAssistantTTS", "Offline TTS failed", error)
+                            runOnUiThread { Toast.makeText(this@MainActivity, "خطای صدای آفلاین: ${error.message}", Toast.LENGTH_LONG).show() }
+                        } finally {
+                            ttsPreparing = false
+                        }
+                    }.start()
                 }
             }
         }
@@ -97,43 +99,8 @@ class MainActivity : ComponentActivity() {
             addView(testTts)
         }
         setContentView(root)
-        testSpeaker = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val persianVoice = testSpeaker?.voices?.firstOrNull {
-                    it.locale.language.equals("fa", ignoreCase = true) ||
-                        it.name.split('-', '_', ' ').any { part ->
-                            part.equals("fa", ignoreCase = true) || part.equals("persian", ignoreCase = true)
-                        }
-                }
-                val language = if (persianVoice != null) {
-                    testSpeaker?.voice = persianVoice
-                    0
-                } else {
-                    testSpeaker?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
-                }
-                Log.d("VocalAssistantTTS", "voices=${testSpeaker?.voices?.map { "${it.name}:${it.locale}" }}; selectedVoice=${persianVoice?.name}")
-                testSpeaker?.setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                testSpeaker?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) { Log.d("VocalAssistantTTS", "utterance started: $utteranceId") }
-                    override fun onDone(utteranceId: String?) { Log.d("VocalAssistantTTS", "utterance done: $utteranceId") }
-                    override fun onError(utteranceId: String?) { Log.e("VocalAssistantTTS", "utterance error: $utteranceId") }
-                })
-                // Some Android TTS engines report LANG_NOT_SUPPORTED for fa-IR
-                // even though a Persian voice is selected and speak() works.
-                testSpeakerReady = persianVoice != null
-                Log.d("VocalAssistantTTS", "initialized; languageStatus=$language; selectedVoice=${persianVoice?.name}")
-                if (testSpeechPending) {
-                    testSpeechPending = false
-                    val result = testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
-                    if (result == TextToSpeech.ERROR) Toast.makeText(this@MainActivity, "موتور صدا نتوانست پخش کند", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
+        offlineTts = OfflinePersianTts(this)
+
         refreshContactLabel()
         requestPermissionsIfNeeded()
     }
@@ -156,9 +123,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        testSpeaker?.stop()
-        testSpeaker?.shutdown()
-        testSpeaker = null
+        offlineTts.release()
         super.onDestroy()
     }
 

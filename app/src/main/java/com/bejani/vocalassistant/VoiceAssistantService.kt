@@ -5,7 +5,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.media.AudioAttributes
 import android.content.Intent
 import android.provider.ContactsContract
 import android.content.pm.PackageManager
@@ -14,7 +13,6 @@ import android.os.IBinder
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import android.speech.tts.TextToSpeech
 import android.telecom.TelecomManager
 import android.net.Uri
 import androidx.core.app.ActivityCompat
@@ -26,8 +24,9 @@ class VoiceAssistantService : Service() {
     private var confirmationMode = false
     private var awaitingCommand = false
     private var restarting = false
-    private var tts: TextToSpeech? = null
+    private lateinit var offlineTts: OfflinePersianTts
     private var ttsReady = false
+    private var ttsPreparing = false
     private var pendingSpeech: String? = null
     private var serviceActive = true
     private var testMode = false
@@ -47,40 +46,7 @@ class VoiceAssistantService : Service() {
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val persianVoice = tts?.voices?.firstOrNull {
-                    it.locale.language.equals("fa", ignoreCase = true) ||
-                        it.name.split('-', '_', ' ').any { part ->
-                            part.equals("fa", ignoreCase = true) || part.equals("persian", ignoreCase = true)
-                        }
-                }
-                if (persianVoice != null) {
-                    tts?.voice = persianVoice
-                } else {
-                    tts?.setLanguage(Locale("fa", "IR"))
-                }
-                android.util.Log.d("VocalAssistantTTS", "voices=${tts?.voices?.map { "${it.name}:${it.locale}" }}; selectedVoice=${persianVoice?.name}")
-                tts?.setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                tts?.setSpeechRate(0.9f)
-                // Some engines report LANG_NOT_SUPPORTED for fa-IR even when
-                // their selected Persian voice can still synthesize speech.
-                ttsReady = persianVoice != null
-                if (!ttsReady) {
-                    updateNotification("صدای فارسی در موتور انتخاب‌شده پیدا نشد")
-                } else {
-                    pendingSpeech?.let { queued ->
-                        pendingSpeech = null
-                        speak(queued)
-                    }
-                }
-            }
-        }
+        offlineTts = OfflinePersianTts(this)
         startForeground(10, notification("در انتظار سلام یولداش"))
         startListening()
     }
@@ -253,14 +219,25 @@ class VoiceAssistantService : Service() {
     }
 
     private fun speak(text: String) {
-        if (!ttsReady) {
-            pendingSpeech = text
-            return
-        }
-        val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_prompt")
-        if (result == TextToSpeech.ERROR) {
-            updateNotification("پخش صدای پاسخ با خطا مواجه شد")
-        }
+        pendingSpeech = text
+        if (ttsPreparing) return
+        ttsPreparing = true
+        Thread {
+            try {
+                offlineTts.prepare { progress -> updateNotification("دانلود مدل صدای فارسی: $progress%") }
+                ttsReady = true
+                val queued = pendingSpeech
+                pendingSpeech = null
+                if (!queued.isNullOrBlank()) offlineTts.speak(queued)
+                updateNotification("دستیار فعال است؛ در انتظار سلام یولداش")
+            } catch (error: Exception) {
+                ttsReady = false
+                updateNotification("خطای صدای آفلاین: ${error.message}")
+                android.util.Log.e("OfflinePersianTts", "Speech failed", error)
+            } finally {
+                ttsPreparing = false
+            }
+        }.start()
     }
 
     private fun scheduleRestart() {
@@ -294,9 +271,7 @@ class VoiceAssistantService : Service() {
         serviceActive = false
         recognizer?.destroy()
         recognizer = null
-        tts?.stop()
-        tts?.shutdown()
-        tts = null
+        offlineTts.release()
         super.onDestroy()
     }
 
