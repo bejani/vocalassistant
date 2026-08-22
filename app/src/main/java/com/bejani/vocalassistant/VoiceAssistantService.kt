@@ -35,13 +35,10 @@ class VoiceAssistantService : Service() {
         createChannel()
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val azeri = tts?.setLanguage(Locale("az", "AZ")) ?: TextToSpeech.LANG_NOT_SUPPORTED
-                if (azeri == TextToSpeech.LANG_MISSING_DATA || azeri == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    tts?.setLanguage(Locale("tr", "TR"))
-                }
+                tts?.setLanguage(Locale("fa", "IR"))
             }
         }
-        startForeground(10, notification("Salam Yoldaş gözlənilir"))
+        startForeground(10, notification("در انتظار سلام یولداش"))
         startListening()
     }
 
@@ -55,7 +52,7 @@ class VoiceAssistantService : Service() {
             speech.setRecognitionListener(object : RecognitionListener {
                 override fun onResults(results: Bundle?) {
                     val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        ?.joinToString(" ")?.lowercase(Locale("az", "AZ")) ?: ""
+                        ?.joinToString(" ")?.lowercase(Locale("fa", "IR")) ?: ""
                     handleText(text)
                     scheduleRestart()
                 }
@@ -67,7 +64,7 @@ class VoiceAssistantService : Service() {
                 override fun onEndOfSpeech() {}
                 override fun onPartialResults(partialResults: Bundle?) {
                     val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        ?.joinToString(" ")?.lowercase(Locale("az", "AZ")) ?: ""
+                        ?.joinToString(" ")?.lowercase(Locale("fa", "IR")) ?: ""
                     if (isWakePhrase(text)) {
                         handleText(text)
                     }
@@ -77,7 +74,7 @@ class VoiceAssistantService : Service() {
         }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "az-AZ")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fa-IR")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
         }
@@ -85,34 +82,29 @@ class VoiceAssistantService : Service() {
     }
 
     private fun isWakePhrase(text: String): Boolean {
-        val normalized = text.lowercase(Locale("az", "AZ"))
-            .replace("ی", "ي")
-            .replace("ئ", "ي")
-            .replace("ۀ", "ه")
-            .replace("ة", "ه")
-            .replace("ş", "s")
-            .replace("ə", "e")
-            .replace("ı", "i")
+        val normalized = text.lowercase(Locale("fa", "IR"))
+            .replace("ي", "ی")
+            .replace("ئ", "ی")
+            .replace("ك", "ک")
             .replace(Regex("[^a-z0-9آ-ی]"), "")
-        return normalized.contains("salamyoldas") || normalized.contains("سلامیولداش") ||
-            normalized.contains("سلاميولداش")
+        return normalized.contains("سلامیولداش") || normalized.contains("salamyoldas")
     }
 
     private fun handleText(text: String) {
         if (isWakePhrase(text)) {
             confirmationMode = false
             awaitingCommand = true
-            val prompt = "Bəli, qulaq asıram. Əmrini de. Zəng etmək üçün zəng et de."
+            val prompt = "بله، در خدمتم. فرمان را بگویید. برای تماس بگویید تماس بگیر."
             updateNotification(prompt)
             speak(prompt)
             return
         }
-        if (!confirmationMode && awaitingCommand && (text.contains("zəng") || text.contains("zeng") || text.contains("telefon"))) {
+        if (!confirmationMode && awaitingCommand && (text.contains("تماس") || text.contains("زنگ"))) {
             awaitingCommand = false
             val contact = findContact(text)
             if (contact == null) {
                 awaitingCommand = true
-                val prompt = "Bu adda kontakt tapılmadı. Adı yenidən de."
+                val prompt = "مخاطبی با این نام پیدا نشد. نام را دوباره بگویید."
                 updateNotification(prompt)
                 speak(prompt)
                 return
@@ -121,7 +113,7 @@ class VoiceAssistantService : Service() {
             pendingPhone = contact.second
             awaitingCommand = false
             confirmationMode = true
-            val prompt = "${contact.first} ilə əlaqə saxlamaq üçün təsdiq edirəm de."
+            val prompt = "برای تماس با ${contact.first} بگویید تأیید می‌کنم."
             updateNotification(prompt)
             speak(prompt)
             return
@@ -131,13 +123,13 @@ class VoiceAssistantService : Service() {
             placeCall()
         } else if (confirmationMode && isRejection(text)) {
             confirmationMode = false
-            val prompt = "Zəng ləğv edildi."
+            val prompt = "تماس لغو شد."
             awaitingCommand = true
             updateNotification(prompt)
             speak(prompt)
         } else if (!confirmationMode && awaitingCommand) {
             awaitingCommand = false
-            val prompt = "Bu əmri başa düşmədim. Zəng etmək üçün zəng et de."
+            val prompt = "این فرمان را متوجه نشدم. برای تماس بگویید تماس بگیر."
             updateNotification(prompt)
             speak(prompt)
         }
@@ -145,13 +137,12 @@ class VoiceAssistantService : Service() {
 
     private fun findContact(command: String): Pair<String, String>? {
         val query = command
-            .replace("zəng vur", "", ignoreCase = true)
-            .replace("zəng et", "", ignoreCase = true)
-            .replace("zeng vur", "", ignoreCase = true)
-            .replace("zeng et", "", ignoreCase = true)
-            .replace("telefon et", "", ignoreCase = true)
-            .trim()
-            .replace(Regex("(yə|ya|ə|a)$"), "")
+            .replace("تماس بگیر", "", ignoreCase = true)
+            .replace("تماس بزن", "", ignoreCase = true)
+            .replace("زنگ بزن", "", ignoreCase = true)
+            .replace("زنگ بگیر", "", ignoreCase = true)
+            .replace("زنگ بزن به", "", ignoreCase = true)
+            .replace(Regex("^(به|با)\\s+"), "")
             .trim()
         if (query.isBlank()) return null
         val queryNormalized = normalizeName(query)
@@ -180,9 +171,11 @@ class VoiceAssistantService : Service() {
         return if (bestScore >= 20) best else null
     }
 
-    private fun normalizeName(value: String): String = value.lowercase(Locale("az", "AZ"))
-        .replace("ə", "e")
-        .replace("ı", "i")
+    private fun normalizeName(value: String): String = value.lowercase(Locale("fa", "IR"))
+        .replace("ي", "ی")
+        .replace("ك", "ک")
+        .replace("ۀ", "ه")
+        .replace("ة", "ه")
         .replace("ö", "o")
         .replace("ü", "u")
         .replace("ş", "s")
@@ -192,8 +185,8 @@ class VoiceAssistantService : Service() {
         .replace(Regex("\\s+"), " ")
         .trim()
 
-    private fun isConfirmation(text: String): Boolean = listOf("təsdiq", "tesdiq", "təsdiq edirəm", "tesdiq edirem", "bəli", "beli", "hə", "he").any(text::contains)
-    private fun isRejection(text: String): Boolean = listOf("ləğv", "legv", "yox", "xeyr", "imtina").any(text::contains)
+    private fun isConfirmation(text: String): Boolean = listOf("تایید", "تأیید", "تایید می کنم", "تأیید می‌کنم", "بله", "حتما", "حتماً").any(text::contains)
+    private fun isRejection(text: String): Boolean = listOf("لغو", "نه", "خیر", "انصراف").any(text::contains)
 
     private fun placeCall() {
         val phone = pendingPhone ?: getSharedPreferences("assistant", MODE_PRIVATE).getString("phone", null)
@@ -209,8 +202,8 @@ class VoiceAssistantService : Service() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(intent)
-        updateNotification("Zəng başladıldı")
-        speak("Zəng başladıldı")
+        updateNotification("تماس برقرار شد")
+        speak("تماس برقرار شد")
         pendingPhone = null
         pendingName = null
     }
