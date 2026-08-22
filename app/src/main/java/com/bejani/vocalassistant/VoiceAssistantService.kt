@@ -151,7 +151,9 @@ class VoiceAssistantService : Service() {
             speak(prompt)
             return
         }
+        android.util.Log.d("VocalAssistantSTT", "confirmation check: mode=$confirmationMode text=$text")
         if (confirmationMode && isConfirmation(text)) {
+            android.util.Log.d("VocalAssistantSTT", "confirmation accepted")
             confirmationMode = false
             placeCall()
         } else if (confirmationMode && isRejection(text)) {
@@ -236,17 +238,34 @@ class VoiceAssistantService : Service() {
             return
         }
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-            updateNotification("مجوز تماس را از تنظیمات برنامه فعال کنید")
+            android.util.Log.e("VocalAssistantSTT", "CALL_PHONE permission missing")
+            updateNotification("مجوز تماس فعال نیست؛ از تنظیمات اجازه تماس را فعال کنید")
+            speak("مجوز تماس فعال نیست")
             return
         }
         val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:${Uri.encode(phone)}")).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        startActivity(intent)
-        updateNotification("تماس برقرار شد")
-        speak("تماس برقرار شد")
-        pendingPhone = null
-        pendingName = null
+        try {
+            android.util.Log.d("VocalAssistantSTT", "placing call to phone=$phone")
+            startActivity(intent)
+            updateNotification("در حال برقراری تماس با ${pendingName ?: "مخاطب"}")
+            speak("در حال برقراری تماس")
+            pendingPhone = null
+            pendingName = null
+        } catch (error: SecurityException) {
+            android.util.Log.e("VocalAssistantSTT", "ACTION_CALL security failure", error)
+            updateNotification("تماس به دلیل مجوز امنیتی انجام نشد")
+            speak("تماس انجام نشد؛ مجوز تماس را بررسی کنید")
+        } catch (error: android.content.ActivityNotFoundException) {
+            android.util.Log.e("VocalAssistantSTT", "No phone app can handle ACTION_CALL", error)
+            updateNotification("برنامه تلفن برای تماس پیدا نشد")
+            speak("برنامه تلفن پیدا نشد")
+        } catch (error: Exception) {
+            android.util.Log.e("VocalAssistantSTT", "Call failed", error)
+            updateNotification("تماس انجام نشد: ${error.message ?: "خطای ناشناخته"}")
+            speak("تماس انجام نشد")
+        }
     }
 
     private fun speak(text: String) {
