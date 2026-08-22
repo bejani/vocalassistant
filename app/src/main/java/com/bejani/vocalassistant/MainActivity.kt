@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.media.AudioAttributes
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import android.provider.ContactsContract
 import android.widget.Button
 import android.widget.LinearLayout
@@ -18,6 +21,8 @@ class MainActivity : ComponentActivity() {
     private val contactPicker = 1001
     private val permissionRequest = 1002
     private lateinit var selectedContact: TextView
+    private var testSpeaker: TextToSpeech? = null
+    private var testSpeakerReady = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,10 +68,11 @@ class MainActivity : ComponentActivity() {
         val testTts = Button(this).apply {
             text = "آزمایش صدا"
             setOnClickListener {
-                ContextCompat.startForegroundService(
-                    this@MainActivity,
-                    Intent(this@MainActivity, VoiceAssistantService::class.java).setAction(VoiceAssistantService.ACTION_TEST_TTS)
-                )
+                if (testSpeakerReady) {
+                    testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
+                } else {
+                    Toast.makeText(this@MainActivity, "موتور صدای فارسی آماده نیست", Toast.LENGTH_LONG).show()
+                }
             }
         }
 
@@ -82,6 +88,21 @@ class MainActivity : ComponentActivity() {
             addView(testTts)
         }
         setContentView(root)
+        testSpeaker = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                var language = testSpeaker?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    language = testSpeaker?.setLanguage(Locale("fa")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                }
+                testSpeaker?.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                testSpeakerReady = language != TextToSpeech.LANG_MISSING_DATA && language != TextToSpeech.LANG_NOT_SUPPORTED
+            }
+        }
         refreshContactLabel()
         requestPermissionsIfNeeded()
     }
@@ -101,6 +122,13 @@ class MainActivity : ComponentActivity() {
         }
         ContextCompat.startForegroundService(this, Intent(this, VoiceAssistantService::class.java))
         Toast.makeText(this, "دستیار فعال شد: سلام یولداش", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDestroy() {
+        testSpeaker?.stop()
+        testSpeaker?.shutdown()
+        testSpeaker = null
+        super.onDestroy()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
