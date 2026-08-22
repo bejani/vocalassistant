@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
                     if (result == TextToSpeech.ERROR) Toast.makeText(this@MainActivity, "موتور صدا نتوانست پخش کند", Toast.LENGTH_LONG).show()
                 } else {
                     testSpeechPending = true
-                    Toast.makeText(this@MainActivity, "در حال آماده‌سازی موتور صدا…", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "صدای فارسی در موتور انتخاب‌شده پیدا نشد", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -101,8 +101,9 @@ class MainActivity : ComponentActivity() {
             if (status == TextToSpeech.SUCCESS) {
                 val persianVoice = testSpeaker?.voices?.firstOrNull {
                     it.locale.language.equals("fa", ignoreCase = true) ||
-                        it.name.contains("fa", ignoreCase = true) ||
-                        it.name.contains("persian", ignoreCase = true)
+                        it.name.split('-', '_', ' ').any { part ->
+                            part.equals("fa", ignoreCase = true) || part.equals("persian", ignoreCase = true)
+                        }
                 }
                 val language = if (persianVoice != null) {
                     testSpeaker?.voice = persianVoice
@@ -110,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     testSpeaker?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
                 }
-                Log.d("VocalAssistantTTS", "voices=${testSpeaker?.voices?.size}; selectedVoice=${persianVoice?.name}")
+                Log.d("VocalAssistantTTS", "voices=${testSpeaker?.voices?.map { "${it.name}:${it.locale}" }}; selectedVoice=${persianVoice?.name}")
                 testSpeaker?.setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -124,8 +125,8 @@ class MainActivity : ComponentActivity() {
                 })
                 // Some Android TTS engines report LANG_NOT_SUPPORTED for fa-IR
                 // even though a Persian voice is selected and speak() works.
-                testSpeakerReady = true
-                Log.d("VocalAssistantTTS", "initialized; faIR=$language")
+                testSpeakerReady = persianVoice != null
+                Log.d("VocalAssistantTTS", "initialized; languageStatus=$language; selectedVoice=${persianVoice?.name}")
                 if (testSpeechPending) {
                     testSpeechPending = false
                     val result = testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")

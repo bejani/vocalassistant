@@ -51,15 +51,16 @@ class VoiceAssistantService : Service() {
             if (status == TextToSpeech.SUCCESS) {
                 val persianVoice = tts?.voices?.firstOrNull {
                     it.locale.language.equals("fa", ignoreCase = true) ||
-                        it.name.contains("fa", ignoreCase = true) ||
-                        it.name.contains("persian", ignoreCase = true)
+                        it.name.split('-', '_', ' ').any { part ->
+                            part.equals("fa", ignoreCase = true) || part.equals("persian", ignoreCase = true)
+                        }
                 }
                 if (persianVoice != null) {
                     tts?.voice = persianVoice
                 } else {
                     tts?.setLanguage(Locale("fa", "IR"))
                 }
-                android.util.Log.d("VocalAssistantTTS", "voices=${tts?.voices?.size}; selectedVoice=${persianVoice?.name}")
+                android.util.Log.d("VocalAssistantTTS", "voices=${tts?.voices?.map { "${it.name}:${it.locale}" }}; selectedVoice=${persianVoice?.name}")
                 tts?.setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -69,9 +70,9 @@ class VoiceAssistantService : Service() {
                 tts?.setSpeechRate(0.9f)
                 // Some engines report LANG_NOT_SUPPORTED for fa-IR even when
                 // their selected Persian voice can still synthesize speech.
-                ttsReady = true
+                ttsReady = persianVoice != null
                 if (!ttsReady) {
-                    updateNotification("موتور تبدیل متن به گفتار در دسترس نیست")
+                    updateNotification("صدای فارسی در موتور انتخاب‌شده پیدا نشد")
                 } else {
                     pendingSpeech?.let { queued ->
                         pendingSpeech = null
