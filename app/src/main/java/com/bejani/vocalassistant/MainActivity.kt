@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.speech.tts.TextToSpeech
 import java.util.Locale
 import android.provider.ContactsContract
@@ -70,7 +71,8 @@ class MainActivity : ComponentActivity() {
             text = "آزمایش صدا"
             setOnClickListener {
                 if (testSpeakerReady) {
-                    testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
+                    val result = testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
+                    if (result == TextToSpeech.ERROR) Toast.makeText(this@MainActivity, "موتور صدا نتوانست پخش کند", Toast.LENGTH_LONG).show()
                 } else {
                     testSpeechPending = true
                     Toast.makeText(this@MainActivity, "در حال آماده‌سازی موتور صدا…", Toast.LENGTH_SHORT).show()
@@ -98,7 +100,7 @@ class MainActivity : ComponentActivity() {
                 }
                 testSpeaker?.setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )
@@ -107,7 +109,8 @@ class MainActivity : ComponentActivity() {
                 testSpeakerReady = true
                 if (testSpeechPending) {
                     testSpeechPending = false
-                    testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
+                    val result = testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
+                    if (result == TextToSpeech.ERROR) Toast.makeText(this@MainActivity, "موتور صدا نتوانست پخش کند", Toast.LENGTH_LONG).show()
                 }
             }
         }
