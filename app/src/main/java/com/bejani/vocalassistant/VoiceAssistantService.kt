@@ -26,6 +26,8 @@ class VoiceAssistantService : Service() {
     private var awaitingCommand = false
     private var restarting = false
     private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingSpeech: String? = null
     private var serviceActive = true
     private var pendingPhone: String? = null
     private var pendingName: String? = null
@@ -35,7 +37,17 @@ class VoiceAssistantService : Service() {
         createChannel()
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                tts?.setLanguage(Locale("fa", "IR"))
+                val languageStatus = tts?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                tts?.setSpeechRate(0.9f)
+                ttsReady = languageStatus != TextToSpeech.LANG_MISSING_DATA && languageStatus != TextToSpeech.LANG_NOT_SUPPORTED
+                if (!ttsReady) {
+                    updateNotification("صدای فارسی نصب نیست؛ از تنظیمات تبدیل متن به گفتار نصبش کنید")
+                } else {
+                    pendingSpeech?.let { queued ->
+                        pendingSpeech = null
+                        speak(queued)
+                    }
+                }
             }
         }
         startForeground(10, notification("در انتظار سلام یولداش"))
@@ -209,6 +221,10 @@ class VoiceAssistantService : Service() {
     }
 
     private fun speak(text: String) {
+        if (!ttsReady) {
+            pendingSpeech = text
+            return
+        }
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_prompt")
     }
 
