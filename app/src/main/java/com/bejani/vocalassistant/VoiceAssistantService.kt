@@ -34,9 +34,14 @@ class VoiceAssistantService : Service() {
         super.onCreate()
         createChannel()
         tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) tts?.language = Locale("fa", "IR")
+            if (status == TextToSpeech.SUCCESS) {
+                val azeri = tts?.setLanguage(Locale("az", "AZ")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                if (azeri == TextToSpeech.LANG_MISSING_DATA || azeri == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.setLanguage(Locale("tr", "TR"))
+                }
+            }
         }
-        startForeground(10, notification("در حال انتظار برای «سلام یولداش»"))
+        startForeground(10, notification("Salam Yoldaş gözlənilir"))
         startListening()
     }
 
@@ -79,8 +84,19 @@ class VoiceAssistantService : Service() {
         recognizer?.startListening(intent)
     }
 
-    private fun isWakePhrase(text: String): Boolean =
-        text.contains("salam yoldaş") || text.contains("salam yoldash") || text.contains("salamyoldaş") || text.contains("salamyoldash")
+    private fun isWakePhrase(text: String): Boolean {
+        val normalized = text.lowercase(Locale("az", "AZ"))
+            .replace("ی", "ي")
+            .replace("ئ", "ي")
+            .replace("ۀ", "ه")
+            .replace("ة", "ه")
+            .replace("ş", "s")
+            .replace("ə", "e")
+            .replace("ı", "i")
+            .replace(Regex("[^a-z0-9آ-ی]"), "")
+        return normalized.contains("salamyoldas") || normalized.contains("سلامیولداش") ||
+            normalized.contains("سلاميولداش")
+    }
 
     private fun handleText(text: String) {
         if (isWakePhrase(text)) {
