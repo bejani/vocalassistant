@@ -49,10 +49,17 @@ class VoiceAssistantService : Service() {
         createChannel()
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                var languageStatus = tts?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
-                if (languageStatus == TextToSpeech.LANG_MISSING_DATA || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    languageStatus = tts?.setLanguage(Locale.getDefault()) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                val persianVoice = tts?.voices?.firstOrNull {
+                    it.locale.language.equals("fa", ignoreCase = true) ||
+                        it.name.contains("fa", ignoreCase = true) ||
+                        it.name.contains("persian", ignoreCase = true)
                 }
+                if (persianVoice != null) {
+                    tts?.voice = persianVoice
+                } else {
+                    tts?.setLanguage(Locale("fa", "IR"))
+                }
+                android.util.Log.d("VocalAssistantTTS", "voices=${tts?.voices?.size}; selectedVoice=${persianVoice?.name}")
                 tts?.setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)

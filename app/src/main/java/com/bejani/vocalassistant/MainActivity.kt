@@ -99,10 +99,18 @@ class MainActivity : ComponentActivity() {
         setContentView(root)
         testSpeaker = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                var language = testSpeaker?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
-                if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    language = testSpeaker?.setLanguage(Locale("fa")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                val persianVoice = testSpeaker?.voices?.firstOrNull {
+                    it.locale.language.equals("fa", ignoreCase = true) ||
+                        it.name.contains("fa", ignoreCase = true) ||
+                        it.name.contains("persian", ignoreCase = true)
                 }
+                val language = if (persianVoice != null) {
+                    testSpeaker?.voice = persianVoice
+                    0
+                } else {
+                    testSpeaker?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                }
+                Log.d("VocalAssistantTTS", "voices=${testSpeaker?.voices?.size}; selectedVoice=${persianVoice?.name}")
                 testSpeaker?.setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
