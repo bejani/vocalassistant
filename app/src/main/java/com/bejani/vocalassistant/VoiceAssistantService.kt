@@ -63,12 +63,21 @@ class VoiceAssistantService : Service() {
                     val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?.joinToString(" ")?.lowercase(Locale("fa", "IR")) ?: ""
                     android.util.Log.d("VocalAssistantSTT", "final text=$text; awaiting=$awaitingCommand; confirmation=$confirmationMode")
+                    if (!testMode && text.isNotBlank()) updateNotification("شنیده شد: ${text.take(70)}")
                     if (!testMode) handleText(text)
                     if (!testMode) scheduleRestart()
 
                 }
-                override fun onError(error: Int) { if (!testMode) scheduleRestart() }
-                override fun onReadyForSpeech(params: Bundle?) {}
+                override fun onError(error: Int) {
+                    android.util.Log.w("VocalAssistantSTT", "recognizer error=$error")
+                    if (!testMode) {
+                        updateNotification("در حال شنیدن فرمان…")
+                        scheduleRestart()
+                    }
+                }
+                override fun onReadyForSpeech(params: Bundle?) {
+                    if (!testMode) updateNotification("در حال شنیدن فرمان…")
+                }
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
@@ -77,6 +86,7 @@ class VoiceAssistantService : Service() {
                     val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?.joinToString(" ")?.lowercase(Locale("fa", "IR")) ?: ""
                     android.util.Log.d("VocalAssistantSTT", "partial text=$text")
+                    if (!testMode && text.isNotBlank()) updateNotification("در حال تشخیص: ${text.take(60)}")
                     if (isWakePhrase(text)) {
                         handleText(text)
                     }
