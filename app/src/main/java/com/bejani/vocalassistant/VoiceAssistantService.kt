@@ -22,6 +22,7 @@ import java.util.Locale
 class VoiceAssistantService : Service() {
     private var recognizer: SpeechRecognizer? = null
     private var confirmationMode = false
+    private var awaitingCommand = false
     private var restarting = false
     private var tts: TextToSpeech? = null
     private var serviceActive = true
@@ -78,12 +79,14 @@ class VoiceAssistantService : Service() {
     private fun handleText(text: String) {
         if (text.contains("سلام یولداش") || text.contains("سلام یولداش".replace(" ", ""))) {
             confirmationMode = false
-            val prompt = "فرمان را بگویید. برای تماس بگویید تماس بگیر."
+            awaitingCommand = true
+            val prompt = "بله، در خدمتم. فرمان را بگویید. برای تماس بگویید تماس بگیر."
             updateNotification(prompt)
             speak(prompt)
             return
         }
-        if (!confirmationMode && (text.contains("تماس") || text.contains("زنگ"))) {
+        if (!confirmationMode && awaitingCommand && (text.contains("تماس") || text.contains("زنگ"))) {
+            awaitingCommand = false
             val name = getSharedPreferences("assistant", MODE_PRIVATE).getString("name", "مخاطب")
             confirmationMode = true
             val prompt = "برای تماس با $name بگویید تأیید می‌کنم."
@@ -97,6 +100,12 @@ class VoiceAssistantService : Service() {
         } else if (confirmationMode && isRejection(text)) {
             confirmationMode = false
             val prompt = "تماس لغو شد."
+            awaitingCommand = true
+            updateNotification(prompt)
+            speak(prompt)
+        } else if (!confirmationMode && awaitingCommand) {
+            awaitingCommand = false
+            val prompt = "این فرمان را متوجه نشدم. برای تماس بگویید تماس بگیر."
             updateNotification(prompt)
             speak(prompt)
         }
