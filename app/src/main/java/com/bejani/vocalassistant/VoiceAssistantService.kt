@@ -24,6 +24,7 @@ class VoiceAssistantService : Service() {
     private var confirmationMode = false
     private var restarting = false
     private var tts: TextToSpeech? = null
+    private var serviceActive = true
 
     override fun onCreate() {
         super.onCreate()
@@ -131,7 +132,7 @@ class VoiceAssistantService : Service() {
         restarting = true
         android.os.Handler(mainLooper).postDelayed({
             restarting = false
-            if (!isDestroyed) startListening()
+            if (serviceActive) startListening()
         }, 450)
     }
 
@@ -153,6 +154,7 @@ class VoiceAssistantService : Service() {
     }
 
     override fun onDestroy() {
+        serviceActive = false
         recognizer?.destroy()
         recognizer = null
         tts?.stop()
