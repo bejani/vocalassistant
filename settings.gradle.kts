@@ -1,20 +1,20 @@
 pluginManagement {
     repositories {
+        // Google Maven mirror is important for com.android.application.
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
         google()
         mavenCentral()
         gradlePluginPortal()
-        // Optional mirror for restricted networks. Enable only if required:
-        // maven { url = uri("https://maven.aliyun.com/repository/public") }
     }
 }
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // AndroidX and Android Gradle Plugin dependencies.
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
         google()
         mavenCentral()
-        // Optional mirror for restricted networks. Enable only if required:
-        // maven { url = uri("https://maven.aliyun.com/repository/public") }
     }
 }
 
