@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import java.util.Locale
 import android.provider.ContactsContract
 import android.widget.Button
@@ -70,8 +72,11 @@ class MainActivity : ComponentActivity() {
         val testTts = Button(this).apply {
             text = "آزمایش صدا"
             setOnClickListener {
+                Toast.makeText(this@MainActivity, "در حال آزمایش موتور صدا…", Toast.LENGTH_SHORT).show()
+                Log.d("VocalAssistantTTS", "Test button clicked; ready=$testSpeakerReady")
                 if (testSpeakerReady) {
                     val result = testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
+                    Log.d("VocalAssistantTTS", "speak() result=$result")
                     if (result == TextToSpeech.ERROR) Toast.makeText(this@MainActivity, "موتور صدا نتوانست پخش کند", Toast.LENGTH_LONG).show()
                 } else {
                     testSpeechPending = true
@@ -104,9 +109,15 @@ class MainActivity : ComponentActivity() {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )
+                testSpeaker?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) { Log.d("VocalAssistantTTS", "utterance started: $utteranceId") }
+                    override fun onDone(utteranceId: String?) { Log.d("VocalAssistantTTS", "utterance done: $utteranceId") }
+                    override fun onError(utteranceId: String?) { Log.e("VocalAssistantTTS", "utterance error: $utteranceId") }
+                })
                 // Some Android TTS engines report LANG_NOT_SUPPORTED for fa-IR
                 // even though a Persian voice is selected and speak() works.
                 testSpeakerReady = true
+                Log.d("VocalAssistantTTS", "initialized; faIR=$language")
                 if (testSpeechPending) {
                     testSpeechPending = false
                     val result = testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
