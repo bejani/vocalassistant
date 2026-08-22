@@ -30,11 +30,15 @@ class VoiceAssistantService : Service() {
     private var ttsReady = false
     private var pendingSpeech: String? = null
     private var serviceActive = true
+    private var testMode = false
     private var pendingPhone: String? = null
     private var pendingName: String? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_TEST_TTS) {
+            testMode = true
+            serviceActive = false
+            recognizer?.cancel()
             speak("این یک صدای آزمایشی از دستیار صوتی است")
         }
         return START_STICKY
@@ -82,10 +86,11 @@ class VoiceAssistantService : Service() {
                 override fun onResults(results: Bundle?) {
                     val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?.joinToString(" ")?.lowercase(Locale("fa", "IR")) ?: ""
-                    handleText(text)
-                    scheduleRestart()
+                                            if (!testMode) handleText(text)
+                    if (!testMode) scheduleRestart()
+
                 }
-                override fun onError(error: Int) { scheduleRestart() }
+                override fun onError(error: Int) { if (!testMode) scheduleRestart() }
                 override fun onReadyForSpeech(params: Bundle?) {}
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
@@ -249,6 +254,7 @@ class VoiceAssistantService : Service() {
     }
 
     private fun scheduleRestart() {
+        if (testMode) return
         if (restarting) return
         restarting = true
         android.os.Handler(mainLooper).postDelayed({
