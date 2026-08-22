@@ -128,7 +128,9 @@ class VoiceAssistantService : Service() {
             .replace("‌", " ")
             .replace(Regex("\\s+"), " ")
             .trim()
-        if (!confirmationMode && awaitingCommand && isCallCommand(normalizedCommand)) {
+        // A clear call command must be accepted even if a recognizer restart
+        // accidentally reset the conversational state after the wake word.
+        if (!confirmationMode && isCallCommand(normalizedCommand)) {
             awaitingCommand = false
             android.util.Log.d("VocalAssistantSTT", "call command=$normalizedCommand")
             val contact = findContact(normalizedCommand)
@@ -172,11 +174,12 @@ class VoiceAssistantService : Service() {
 
     private fun findContact(command: String): Pair<String, String>? {
         val query = command
+            .replace("سلام یولداش", "", ignoreCase = true)
             .replace("تماس بگیر", "", ignoreCase = true)
             .replace("تماس بزن", "", ignoreCase = true)
+            .replace("زنگ بزن به", "", ignoreCase = true)
             .replace("زنگ بزن", "", ignoreCase = true)
             .replace("زنگ بگیر", "", ignoreCase = true)
-            .replace("زنگ بزن به", "", ignoreCase = true)
             .replace(Regex("^(به|با)\\s+"), "")
             .trim()
         if (query.isBlank()) return null
@@ -217,7 +220,9 @@ class VoiceAssistantService : Service() {
         .replace("ş", "s")
         .replace("ç", "c")
         .replace("ğ", "g")
-        .replace(Regex("[^a-z0-9 ]"), " ")
+        // Keep Persian/Arabic letters and digits; removing them makes every
+        // Persian contact name become empty and prevents matching.
+        .replace(Regex("[^\\p{L}\\p{N} ]"), " ")
         .replace(Regex("\\s+"), " ")
         .trim()
 
