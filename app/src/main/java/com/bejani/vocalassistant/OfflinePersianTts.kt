@@ -3,6 +3,7 @@ package com.bejani.vocalassistant
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import android.util.Log
 import com.k2fsa.sherpa.onnx.OfflineTts
@@ -86,7 +87,7 @@ class OfflinePersianTts(private val context: Context) {
             format,
             bufferSize,
             AudioTrack.MODE_STATIC,
-            AudioTrack.AUDIO_SESSION_ID_GENERATE
+            AudioManager.AUDIO_SESSION_ID_GENERATE
         )
         track!!.write(audio.samples, 0, audio.samples.size, AudioTrack.WRITE_BLOCKING)
         track!!.play()
