@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.provider.ContactsContract
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
@@ -26,6 +27,8 @@ class VoiceAssistantService : Service() {
     private var restarting = false
     private var tts: TextToSpeech? = null
     private var serviceActive = true
+    private var pendingPhone: String? = null
+    private var pendingName: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -90,9 +93,19 @@ class VoiceAssistantService : Service() {
         }
         if (!confirmationMode && awaitingCommand && (text.contains("zəng") || text.contains("zeng") || text.contains("telefon"))) {
             awaitingCommand = false
-            val name = getSharedPreferences("assistant", MODE_PRIVATE).getString("name", "مخاطب")
+            val contact = findContact(text)
+            if (contact == null) {
+                awaitingCommand = true
+                val prompt = "Bu adda kontakt tapılmadı. Adı yenidən de."
+                updateNotification(prompt)
+                speak(prompt)
+                return
+            }
+            pendingName = contact.first
+            pendingPhone = contact.second
+            awaitingCommand = false
             confirmationMode = true
-            val prompt = "$name ilə əlaqə saxlamaq üçün təsdiq edirəm de."
+            val prompt = "${contact.first} ilə əlaqə saxlamaq üçün təsdiq edirəm de."
             updateNotification(prompt)
             speak(prompt)
             return
@@ -114,11 +127,60 @@ class VoiceAssistantService : Service() {
         }
     }
 
+    private fun findContact(command: String): Pair<String, String>? {
+        val query = command
+            .replace("zəng vur", "", ignoreCase = true)
+            .replace("zəng et", "", ignoreCase = true)
+            .replace("zeng vur", "", ignoreCase = true)
+            .replace("zeng et", "", ignoreCase = true)
+            .replace("telefon et", "", ignoreCase = true)
+            .trim()
+            .replace(Regex("(yə|ya|ə|a)$"), "")
+            .trim()
+        if (query.isBlank()) return null
+        val queryNormalized = normalizeName(query)
+        var best: Pair<String, String>? = null
+        var bestScore = 0
+        contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER),
+            null, null, null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(0) ?: continue
+                val phone = cursor.getString(1) ?: continue
+                val normalizedName = normalizeName(name)
+                val score = when {
+                    normalizedName == queryNormalized -> 100
+                    normalizedName.contains(queryNormalized) || queryNormalized.contains(normalizedName) -> 80
+                    else -> normalizeName(query).split(" ").count { token -> token.length > 1 && normalizedName.contains(token) } * 10
+                }
+                if (score > bestScore) {
+                    bestScore = score
+                    best = name to phone
+                }
+            }
+        }
+        return if (bestScore >= 20) best else null
+    }
+
+    private fun normalizeName(value: String): String = value.lowercase(Locale("az", "AZ"))
+        .replace("ə", "e")
+        .replace("ı", "i")
+        .replace("ö", "o")
+        .replace("ü", "u")
+        .replace("ş", "s")
+        .replace("ç", "c")
+        .replace("ğ", "g")
+        .replace(Regex("[^a-z0-9 ]"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
     private fun isConfirmation(text: String): Boolean = listOf("təsdiq", "tesdiq", "təsdiq edirəm", "tesdiq edirem", "bəli", "beli", "hə", "he").any(text::contains)
     private fun isRejection(text: String): Boolean = listOf("ləğv", "legv", "yox", "xeyr", "imtina").any(text::contains)
 
     private fun placeCall() {
-        val phone = getSharedPreferences("assistant", MODE_PRIVATE).getString("phone", null)
+        val phone = pendingPhone ?: getSharedPreferences("assistant", MODE_PRIVATE).getString("phone", null)
         if (phone.isNullOrBlank()) {
             updateNotification("مخاطب انتخاب نشده است")
             return
@@ -133,6 +195,8 @@ class VoiceAssistantService : Service() {
         startActivity(intent)
         updateNotification("Zəng başladıldı")
         speak("Zəng başladıldı")
+        pendingPhone = null
+        pendingName = null
     }
 
     private fun speak(text: String) {

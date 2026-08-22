@@ -78,11 +78,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startAssistant() {
-        val prefs = getSharedPreferences("assistant", MODE_PRIVATE)
-        if (prefs.getString("phone", null).isNullOrBlank()) {
-            Toast.makeText(this, "Əvvəlcə kontakt seçin", Toast.LENGTH_LONG).show()
-            return
-        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionsIfNeeded()
             return
