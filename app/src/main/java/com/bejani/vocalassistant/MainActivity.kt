@@ -24,19 +24,19 @@ class MainActivity : ComponentActivity() {
         title = "Vocal Assistant"
 
         selectedContact = TextView(this).apply {
-            text = "مخاطب تماس: انتخاب نشده"
+            text = "Kontakt: seçilməyib"
             textSize = 18f
             setPadding(0, 24, 0, 24)
         }
 
         val explanation = TextView(this).apply {
-            text = "عبارت بیدارباش: سلام یولداش\nپس از شنیدن فرمان تماس، دستیار برای ایمنی تأیید صوتی می‌گیرد.\n\nتوجه: تشخیص گفتار از SpeechRecognizer سیستم استفاده می‌کند و مدل آفلاین داخل برنامه ندارد."
+            text = "Wake word: Salam Yoldaş\nSəsli zəng əmrindən sonra təhlükəsizlik üçün təsdiq istəyəcək.\n\nQeyd: Səs tanıma telefonun SpeechRecognizer xidmətindən istifadə edir və proqramda offline model yoxdur."
             textSize = 16f
             setPadding(0, 16, 0, 24)
         }
 
         val choose = Button(this).apply {
-            text = "انتخاب مخاطب"
+            text = "Kontakt seç"
             setOnClickListener {
                 startActivityForResult(
                     Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI),
@@ -46,12 +46,12 @@ class MainActivity : ComponentActivity() {
         }
 
         val start = Button(this).apply {
-            text = "شروع دستیار صوتی"
+            text = "Səsli köməkçini başlat"
             setOnClickListener { startAssistant() }
         }
 
         val stop = Button(this).apply {
-            text = "توقف دستیار"
+            text = "Köməkçini dayandır"
             setOnClickListener { stopService(Intent(this@MainActivity, VoiceAssistantService::class.java)) }
         }
 
@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
     private fun startAssistant() {
         val prefs = getSharedPreferences("assistant", MODE_PRIVATE)
         if (prefs.getString("phone", null).isNullOrBlank()) {
-            Toast.makeText(this, "ابتدا یک مخاطب انتخاب کنید", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Əvvəlcə kontakt seçin", Toast.LENGTH_LONG).show()
             return
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         ContextCompat.startForegroundService(this, Intent(this, VoiceAssistantService::class.java))
-        Toast.makeText(this, "دستیار فعال شد: سلام یولداش", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Köməkçi aktivdir: Salam Yoldaş", Toast.LENGTH_SHORT).show()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -113,6 +113,6 @@ class MainActivity : ComponentActivity() {
     private fun refreshContactLabel() {
         val prefs = getSharedPreferences("assistant", MODE_PRIVATE)
         val name = prefs.getString("name", null)
-        selectedContact.text = if (name == null) "مخاطب تماس: انتخاب نشده" else "مخاطب تماس: $name"
+        selectedContact.text = if (name == null) "Kontakt: seçilməyib" else "Kontakt: $name"
     }
 }
