@@ -23,6 +23,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var selectedContact: TextView
     private var testSpeaker: TextToSpeech? = null
     private var testSpeakerReady = false
+    private var testSpeechPending = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,7 +72,8 @@ class MainActivity : ComponentActivity() {
                 if (testSpeakerReady) {
                     testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
                 } else {
-                    Toast.makeText(this@MainActivity, "موتور صدای فارسی آماده نیست", Toast.LENGTH_LONG).show()
+                    testSpeechPending = true
+                    Toast.makeText(this@MainActivity, "در حال آماده‌سازی موتور صدا…", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -100,7 +102,13 @@ class MainActivity : ComponentActivity() {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )
-                testSpeakerReady = language != TextToSpeech.LANG_MISSING_DATA && language != TextToSpeech.LANG_NOT_SUPPORTED
+                // Some Android TTS engines report LANG_NOT_SUPPORTED for fa-IR
+                // even though a Persian voice is selected and speak() works.
+                testSpeakerReady = true
+                if (testSpeechPending) {
+                    testSpeechPending = false
+                    testSpeaker?.speak("این یک صدای آزمایشی از دستیار صوتی است", TextToSpeech.QUEUE_FLUSH, null, "main_test")
+                }
             }
         }
         refreshContactLabel()

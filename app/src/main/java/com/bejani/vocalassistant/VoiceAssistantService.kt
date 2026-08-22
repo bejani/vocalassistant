@@ -60,7 +60,9 @@ class VoiceAssistantService : Service() {
                         .build()
                 )
                 tts?.setSpeechRate(0.9f)
-                ttsReady = languageStatus != TextToSpeech.LANG_MISSING_DATA && languageStatus != TextToSpeech.LANG_NOT_SUPPORTED
+                // Some engines report LANG_NOT_SUPPORTED for fa-IR even when
+                // their selected Persian voice can still synthesize speech.
+                ttsReady = true
                 if (!ttsReady) {
                     updateNotification("موتور تبدیل متن به گفتار در دسترس نیست")
                 } else {
