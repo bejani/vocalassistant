@@ -60,6 +60,16 @@ class MainActivity : ComponentActivity() {
             setOnClickListener { startActivity(Intent("com.android.settings.TTS_SETTINGS")) }
         }
 
+        val testTts = Button(this).apply {
+            text = "آزمایش صدا"
+            setOnClickListener {
+                ContextCompat.startForegroundService(
+                    this@MainActivity,
+                    Intent(this@MainActivity, VoiceAssistantService::class.java).setAction(VoiceAssistantService.ACTION_TEST_TTS)
+                )
+            }
+        }
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(40, 32, 40, 32)
@@ -69,6 +79,7 @@ class MainActivity : ComponentActivity() {
             addView(start)
             addView(stop)
             addView(ttsSettings)
+            addView(testTts)
         }
         setContentView(root)
         refreshContactLabel()

@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.media.AudioAttributes
 import android.content.Intent
 import android.provider.ContactsContract
 import android.content.pm.PackageManager
@@ -32,16 +33,32 @@ class VoiceAssistantService : Service() {
     private var pendingPhone: String? = null
     private var pendingName: String? = null
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_TEST_TTS) {
+            speak("این یک صدای آزمایشی از دستیار صوتی است")
+        }
+        return START_STICKY
+    }
+
     override fun onCreate() {
         super.onCreate()
         createChannel()
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val languageStatus = tts?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                var languageStatus = tts?.setLanguage(Locale("fa", "IR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                if (languageStatus == TextToSpeech.LANG_MISSING_DATA || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    languageStatus = tts?.setLanguage(Locale.getDefault()) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                }
+                tts?.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
                 tts?.setSpeechRate(0.9f)
                 ttsReady = languageStatus != TextToSpeech.LANG_MISSING_DATA && languageStatus != TextToSpeech.LANG_NOT_SUPPORTED
                 if (!ttsReady) {
-                    updateNotification("صدای فارسی نصب نیست؛ از تنظیمات تبدیل متن به گفتار نصبش کنید")
+                    updateNotification("موتور تبدیل متن به گفتار در دسترس نیست")
                 } else {
                     pendingSpeech?.let { queued ->
                         pendingSpeech = null
@@ -225,7 +242,10 @@ class VoiceAssistantService : Service() {
             pendingSpeech = text
             return
         }
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_prompt")
+        val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_prompt")
+        if (result == TextToSpeech.ERROR) {
+            updateNotification("پخش صدای پاسخ با خطا مواجه شد")
+        }
     }
 
     private fun scheduleRestart() {
@@ -265,4 +285,8 @@ class VoiceAssistantService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    companion object {
+        const val ACTION_TEST_TTS = "com.bejani.vocalassistant.TEST_TTS"
+    }
 }
