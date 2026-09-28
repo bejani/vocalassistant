@@ -128,6 +128,37 @@ class VoiceAssistantService : Service() {
             .replace("‌", " ")
             .replace(Regex("\\s+"), " ")
             .trim()
+
+        // ===== ساعت و تاریخ =====
+        if (isTimeQuery(normalizedCommand)) {
+            confirmationMode = false
+            awaitingCommand = false
+            val time = getCurrentTime()
+            val prompt = "ساعت $time است"
+            updateNotification(prompt)
+            speak(prompt)
+            return
+        }
+        if (isDateQuery(normalizedCommand)) {
+            confirmationMode = false
+            awaitingCommand = false
+            val date = getCurrentDate()
+            val prompt = "امروز $date است"
+            updateNotification(prompt)
+            speak(prompt)
+            return
+        }
+        if (isDayQuery(normalizedCommand)) {
+            confirmationMode = false
+            awaitingCommand = false
+            val day = getCurrentDay()
+            val prompt = "امروز $day است"
+            updateNotification(prompt)
+            speak(prompt)
+            return
+        }
+        // ===== پایان ساعت و تاریخ =====
+
         // A clear call command must be accepted even if a recognizer restart
         // accidentally reset the conversational state after the wake word.
         if (!confirmationMode && isCallCommand(normalizedCommand)) {
@@ -173,6 +204,52 @@ class VoiceAssistantService : Service() {
     private fun isCallCommand(text: String): Boolean = listOf(
         "تماس", "تماس بگیر", "تماس بزن", "زنگ", "زنگ بزن", "زنگ بگیر", "تلفن"
     ).any(text::contains)
+
+    // ===== توابع ساعت و تاریخ =====
+    private fun isTimeQuery(text: String): Boolean = listOf(
+        "ساعت", "چند ساعت", "ساعت چنده", "ساعت چند"
+    ).any(text::contains)
+
+    private fun isDateQuery(text: String): Boolean = listOf(
+        "تاریخ", "امروز چندم", "چندمه", "تاریخ امروز"
+    ).any(text::contains)
+
+    private fun isDayQuery(text: String): Boolean = listOf(
+        "چه روزی", "چی روزی", "روز چیه", "امروز چه روز"
+    ).any(text::contains)
+
+    private fun getCurrentTime(): String {
+        val calendar = java.util.Calendar.getInstance()
+        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val minute = calendar.get(java.util.Calendar.MINUTE)
+        return "$hour و $minute دقیقه"
+    }
+
+    private fun getCurrentDate(): String {
+        val calendar = java.util.Calendar.getInstance()
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val month = calendar.get(java.util.Calendar.MONTH) + 1
+        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+
+        // تبدیل ساده به تاریخ شمسی (تقریبی)
+        val persianMonths = listOf(
+            "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+            "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
+        )
+        val monthName = persianMonths.getOrElse(month - 1) { "ماه $month" }
+        return "$day $monthName $year"
+    }
+
+    private fun getCurrentDay(): String {
+        val calendar = java.util.Calendar.getInstance()
+        val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+        val days = listOf(
+            "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه",
+            "پنجشنبه", "جمعه", "شنبه"
+        )
+        return days.getOrElse(dayOfWeek - 1) { "روز ناشناخته" }
+    }
+    // ===== پایان توابع ساعت و تاریخ =====
 
     private fun findContact(command: String): Pair<String, String>? {
         val query = command
